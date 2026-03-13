@@ -144,7 +144,10 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   cursor:pointer;font-size:12px;font-weight:800;color:#636366;
   -webkit-tap-highlight-color:transparent;transition:all 0.15s;
 }
-.play-cell.hit{background:#1e5c2e;border-color:#2ecc71;color:#2ecc71;}
+.play-cell.single{background:#1e5c2e;border-color:#2ecc71;color:#2ecc71;}
+.play-cell.double{background:#5c4e00;border-color:#f1c40f;color:#f1c40f;}
+.play-cell.triple{background:#0d2e5c;border-color:#3498db;color:#3498db;}
+.play-cell.homerun{background:#3a3a3a;border-color:#ecf0f1;color:#ecf0f1;}
 .play-cell.out{background:#5c1e1e;border-color:#e74c3c;color:#e74c3c;}
 .play-cell.walk{background:#3a3a1e;border-color:#f5a623;color:#f5a623;}
 .play-cell.strikeout{background:#4a1e5c;border-color:#9b59b6;color:#9b59b6;}
@@ -296,7 +299,10 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   padding:14px 6px;border-radius:10px;border:2px solid transparent;
   font-size:13px;font-weight:700;cursor:pointer;text-align:center;
 }
-.modal-btn.hit{background:#1e5c2e;border-color:#2ecc71;color:#2ecc71;}
+.modal-btn.single{background:#1e5c2e;border-color:#2ecc71;color:#2ecc71;}
+.modal-btn.double{background:#5c4e00;border-color:#f1c40f;color:#f1c40f;}
+.modal-btn.triple{background:#0d2e5c;border-color:#3498db;color:#3498db;}
+.modal-btn.homerun{background:#3a3a3a;border-color:#ecf0f1;color:#ecf0f1;}
 .modal-btn.out{background:#5c1e1e;border-color:#e74c3c;color:#e74c3c;}
 .modal-btn.walk{background:#3a3a1e;border-color:#f5a623;color:#f5a623;}
 .modal-btn.strikeout{background:#4a1e5c;border-color:#9b59b6;color:#9b59b6;}
@@ -306,6 +312,14 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   width:100%;padding:13px;background:#3a3a3c;border:none;
   border-radius:10px;color:#f2f2f7;font-size:15px;font-weight:600;cursor:pointer;
 }
+
+/* ── Save Button ── */
+.save-btn{
+  width:100%;padding:12px;background:#1a3a5c;border:1.5px solid #f5a623;
+  border-radius:10px;color:#f5a623;font-size:15px;font-weight:700;cursor:pointer;
+  margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.save-btn:active{background:#0a2240;}
 </style>
 </head>
 <body>
@@ -346,7 +360,10 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   </div>
   <div class="player-table" id="scoresheet0"></div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>Hit</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>1B Single</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5c4e00;border-color:#f1c40f"></div>2B Double</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0d2e5c;border-color:#3498db"></div>3B Triple</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3a3a3a;border-color:#ecf0f1"></div>HR Homer</div>
     <div class="legend-item"><div class="legend-dot" style="background:#5c1e1e;border-color:#e74c3c"></div>Out</div>
     <div class="legend-item"><div class="legend-dot" style="background:#4a1e5c;border-color:#9b59b6"></div>K</div>
     <div class="legend-item"><div class="legend-dot" style="background:#3a3a1e;border-color:#f5a623"></div>BB</div>
@@ -366,7 +383,10 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   </div>
   <div class="player-table" id="scoresheet1"></div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>Hit</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>1B Single</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5c4e00;border-color:#f1c40f"></div>2B Double</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0d2e5c;border-color:#3498db"></div>3B Triple</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3a3a3a;border-color:#ecf0f1"></div>HR Homer</div>
     <div class="legend-item"><div class="legend-dot" style="background:#5c1e1e;border-color:#e74c3c"></div>Out</div>
     <div class="legend-item"><div class="legend-dot" style="background:#4a1e5c;border-color:#9b59b6"></div>K</div>
     <div class="legend-item"><div class="legend-dot" style="background:#3a3a1e;border-color:#f5a623"></div>BB</div>
@@ -388,7 +408,8 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
 <!-- ── GAME SUMMARY PAGE ── -->
 <div class="page" id="page-game">
   <div class="game-summary" id="gameSummary"></div>
-  <button class="reset-btn" onclick="confirmReset()">🗑️ Reset Scoresheet</button>
+  <button class="save-btn" onclick="saveToFile()">💾 Save Scoresheet to File</button>
+<button class="reset-btn" onclick="confirmReset()">🗑️ Reset Scoresheet</button>
 </div>
 
 <!-- Bottom Nav -->
@@ -412,7 +433,10 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   <div class="modal">
     <h3 id="modalTitle">Record Play</h3>
     <div class="modal-grid">
-      <button class="modal-btn hit"       onclick="selectPlay('hit')">🟢 Hit</button>
+      <button class="modal-btn single"    onclick="selectPlay('single')">🟢 Single</button>
+      <button class="modal-btn double"    onclick="selectPlay('double')">🟢 Double</button>
+      <button class="modal-btn triple"    onclick="selectPlay('triple')">🟢 Triple</button>
+      <button class="modal-btn homerun"   onclick="selectPlay('homerun')">🌟 Home Run</button>
       <button class="modal-btn out"       onclick="selectPlay('out')">🔴 Out</button>
       <button class="modal-btn strikeout" onclick="selectPlay('strikeout')">🟣 K</button>
       <button class="modal-btn walk"      onclick="selectPlay('walk')">🟡 Walk</button>
@@ -443,7 +467,8 @@ if('serviceWorker' in navigator){
 const INNINGS=6,PLAYERS=12,PITCHERS=6;
 let activeInning=[0,0]; // per team
 let pendingCell=null;
-const playLabels={hit:'H',out:'O',walk:'BB',strikeout:'K',error:'E','':''};
+const playLabels={single:'1B',double:'2B',triple:'3B',homerun:'HR',out:'O',walk:'BB',strikeout:'K',error:'E','':''};
+function isHit(p){return p==='single'||p==='double'||p==='triple'||p==='homerun';}
 
 // ── State ─────────────────────────────────────────────────────────────────
 function freshPlayer(){
@@ -622,7 +647,7 @@ function updateTotalsBar(team){
   state.teams[team].forEach(pl=>{
     const i=pl.innings[inn];
     if(i.run)runs++;
-    if(i.play==='hit')hits++;
+    if(isHit(i.play))hits++;
     if(i.play==='walk')walks++;
     pitches+=i.pitches||0;
   });
@@ -763,7 +788,7 @@ function buildGameSummary(){
   // Header
   let hdrHTML='<thead><tr><th>Team</th>';
   for(let i=0;i<INNINGS;i++) hdrHTML+='<th>'+(i+1)+'</th>';
-  hdrHTML+='<th>R</th><th>H</th><th>BB</th></tr></thead>';
+  hdrHTML+='<th>R</th><th>H</th><th>HR</th><th>BB</th></tr></thead>';
   // Build rows
   const rows=[{team:0,label:n0,cls:'home-color'},{team:1,label:n1,cls:'away-color'}];
   let bodyHTML='<tbody>';
@@ -775,7 +800,7 @@ function buildGameSummary(){
       let innRuns=0,innHits=0;
       state.teams[team].forEach(pl=>{
         if(pl.innings[i].run)innRuns++;
-        if(pl.innings[i].play==='hit')innHits++;
+        if(isHit(pl.innings[i].play))innHits++;
         if(pl.innings[i].play==='walk')totalBB++;
       });
       totalRuns+=innRuns;totalHits+=innHits;
@@ -788,8 +813,11 @@ function buildGameSummary(){
       if(inn.play==='hit')totalHits++;
       if(inn.play==='walk')totalBB++;
     }));
+    let totalHR=0;
+    state.teams[team].forEach(pl=>pl.innings.forEach(inn=>{ if(inn.play==='homerun')totalHR++; }));
     rowHTML+='<td class="total-cell '+cls+'">'+totalRuns+'</td>';
     rowHTML+='<td class="total-cell">'+totalHits+'</td>';
+    rowHTML+='<td class="total-cell" style="color:#ecf0f1">'+totalHR+'</td>';
     rowHTML+='<td class="total-cell">'+totalBB+'</td>';
     rowHTML+='</tr>';
     bodyHTML+=rowHTML;
@@ -809,11 +837,15 @@ function buildGameSummary(){
     const dGrid=document.createElement('div');dGrid.className='detail-grid';
     [0,1].forEach(team=>{
       const tname=team===0?n0:n1;
-      let runs=0,hits=0,walks=0,ks=0,errors=0,pitches=0;
+      let runs=0,hits=0,singles=0,doubles=0,triples=0,homeruns=0,walks=0,ks=0,errors=0,pitches=0;
       state.teams[team].forEach(pl=>{
         const inn=pl.innings[i];
         if(inn.run)runs++;
-        if(inn.play==='hit')hits++;
+        if(isHit(inn.play))hits++;
+        if(inn.play==='single')singles++;
+        if(inn.play==='double')doubles++;
+        if(inn.play==='triple')triples++;
+        if(inn.play==='homerun')homeruns++;
         if(inn.play==='walk')walks++;
         if(inn.play==='strikeout')ks++;
         if(inn.play==='error')errors++;
@@ -829,7 +861,11 @@ function buildGameSummary(){
       box.innerHTML=
         '<div class="detail-team-label">'+(team===0?'🔵 ':'🔴 ')+tname+'</div>'+
         '<div class="detail-stat-row"><span>Runs</span><span style="color:#3498db">'+runs+'</span></div>'+
-        '<div class="detail-stat-row"><span>Hits</span><span style="color:#2ecc71">'+hits+'</span></div>'+
+        '<div class="detail-stat-row"><span>Hits (Total)</span><span style="color:#2ecc71">'+hits+'</span></div>'+
+        '<div class="detail-stat-row"><span>— Singles</span><span style="color:#2ecc71">'+singles+'</span></div>'+
+        '<div class="detail-stat-row"><span>— Doubles</span><span style="color:#27ae60">'+doubles+'</span></div>'+
+        '<div class="detail-stat-row"><span>— Triples</span><span style="color:#1e8449">'+triples+'</span></div>'+
+        '<div class="detail-stat-row"><span>— Home Runs</span><span style="color:#f39c12">'+homeruns+'</span></div>'+
         '<div class="detail-stat-row"><span>Walks</span><span style="color:#f5a623">'+walks+'</span></div>'+
         '<div class="detail-stat-row"><span>Strikeouts</span><span style="color:#9b59b6">'+ks+'</span></div>'+
         '<div class="detail-stat-row"><span>Errors</span><span style="color:#e67e22">'+errors+'</span></div>'+
@@ -891,6 +927,25 @@ function confirmReset(){
     try{localStorage.removeItem('bss3');localStorage.removeItem('bss3_info');}catch(e){}
     updateHeaderSub();updateScoreBadges();
   }
+}
+
+// ── Save to File ─────────────────────────────────────────────────────────
+function saveToFile(){
+  try{
+    const n0=document.getElementById('teamName0').value||'Home';
+    const n1=document.getElementById('teamName1').value||'Away';
+    const dt=document.getElementById('gameDate').value||new Date().toISOString().slice(0,10);
+    const filename=dt+'_'+n0.replace(/\s+/g,'_')+'_vs_'+n1.replace(/\s+/g,'_')+'.html';
+    // Embed current state into a snapshot of this page
+    const snapshot=document.documentElement.outerHTML;
+    const blob=new Blob([snapshot],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){alert('Save failed: '+e.message);}
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
