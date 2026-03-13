@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scoresheet">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a2240">
+<title>Baseball Scoresheet</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚾</text></svg>">
+<link rel="apple-touch-icon" id="appleIcon">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Baseball%20Scoresheet%22%2C%22short_name%22%3A%22Scoresheet%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231c1c1e%22%2C%22theme_color%22%3A%22%230a2240%22%2C%22orientation%22%3A%22portrait%22%7D">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;
+  background:#1c1c1e;color:#f2f2f7;min-height:100vh;
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:calc(60px + env(safe-area-inset-bottom));
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
+}
+
+/* ── Header ── */
+header{
+  background:linear-gradient(135deg,#1a3a5c,#0a2240);
+  padding:12px 16px 8px;border-bottom:2px solid #f5a623;
+}
+.header-top{display:flex;align-items:center;justify-content:space-between;}
+header h1{font-size:20px;font-weight:700;color:#f5a623;}
+.score-display{display:flex;align-items:center;gap:6px;}
+.score-badge{border-radius:8px;padding:4px 10px;font-size:20px;font-weight:800;min-width:40px;text-align:center;}
+.score-badge.home{background:#1a3a5c;color:#f5a623;border:1.5px solid #f5a623;}
+.score-badge.away{background:#3a1a1a;color:#e74c3c;border:1.5px solid #e74c3c;}
+.score-sep{font-size:18px;font-weight:800;color:#636366;}
+.header-sub{font-size:11px;color:#8e8e93;margin-top:4px;text-align:center;}
+
+/* ── Install Banner ── */
+#installBanner{
+  display:none;background:#1a3a5c;border-bottom:1px solid #f5a623;
+  padding:8px 14px;font-size:11px;color:#f2f2f7;text-align:center;line-height:1.6;
+}
+#installBanner strong{color:#f5a623;}
+#installBanner button{
+  margin-top:4px;background:#f5a623;border:none;border-radius:6px;
+  color:#1c1c1e;font-size:11px;font-weight:700;padding:4px 12px;cursor:pointer;
+}
+
+/* ── Game Info ── */
+.game-info{
+  background:#2c2c2e;margin:10px 12px 0;border-radius:12px;
+  padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;
+}
+.game-info input,.game-info input[type="date"]{
+  background:#3a3a3c;border:1px solid #48484a;border-radius:8px;
+  padding:8px 10px;color:#f2f2f7;font-size:13px;width:100%;
+  -webkit-appearance:none;appearance:none;
+}
+.game-info input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;}
+.game-info input::placeholder{color:#636366;}
+
+/* ── Bottom Nav ── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#1c1c1e;border-top:1px solid #3a3a3c;
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+  z-index:50;
+}
+.nav-btn{
+  flex:1;padding:10px 4px 8px;border:none;background:transparent;
+  color:#636366;font-size:10px;font-weight:600;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  transition:color 0.15s;
+}
+.nav-btn .nav-icon{font-size:20px;}
+.nav-btn.active{color:#f5a623;}
+
+/* ── Pages ── */
+.page{display:none;padding:0 12px;}
+.page.active{display:block;}
+
+/* ── Inning Selector ── */
+.inning-selector{
+  display:flex;align-items:center;margin:10px 0 0;
+  background:#2c2c2e;border-radius:12px;padding:10px 14px;gap:10px;
+}
+.inning-selector label{font-size:12px;color:#8e8e93;font-weight:600;white-space:nowrap;}
+.inning-btns{display:flex;gap:5px;flex:1;}
+.inn-btn{
+  flex:1;padding:8px 2px;border:1.5px solid #48484a;border-radius:8px;
+  background:#3a3a3c;color:#8e8e93;font-size:13px;font-weight:700;
+  cursor:pointer;text-align:center;transition:all 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.inn-btn.active{background:#1a3a5c;border-color:#f5a623;color:#f5a623;}
+
+/* ── Team mini-tabs (inside pages) ── */
+.team-tabs{
+  display:flex;margin:10px 0 0;border-radius:10px;overflow:hidden;background:#2c2c2e;
+}
+.team-tab-btn{
+  flex:1;padding:9px;border:none;background:transparent;
+  color:#8e8e93;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;
+}
+.team-tab-btn.active{background:#f5a623;color:#1c1c1e;border-radius:10px;}
+.team-pane{display:none;}
+.team-pane.active{display:block;}
+
+.team-name-row{display:flex;align-items:center;gap:10px;margin:8px 0;}
+.team-name-row input{
+  flex:1;background:#2c2c2e;border:1px solid #48484a;border-radius:8px;
+  padding:8px 12px;color:#f5a623;font-size:15px;font-weight:700;
+}
+
+/* ── Player Table ── */
+.player-table{background:#2c2c2e;border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.row-grid{
+  display:grid;
+  grid-template-columns:28px 1fr 40px 50px 36px 96px 34px;
+  align-items:center;gap:4px;padding:6px 8px;
+}
+.table-header{background:#1a3a5c;font-size:10px;font-weight:700;color:#f5a623;border-bottom:2px solid #f5a623;}
+.table-header>div{text-align:center;}
+.table-header .lbl{text-align:left;}
+.player-row{border-bottom:1px solid #3a3a3c;}
+.player-row:last-child{border-bottom:none;}
+.player-row:nth-child(even){background:#252527;}
+.player-num{font-size:11px;color:#8e8e93;text-align:center;font-weight:600;}
+.player-name-input{
+  background:transparent;border:none;border-bottom:1px solid #3a3a3c;
+  color:#f2f2f7;font-size:12px;padding:2px 4px;width:100%;
+}
+.player-name-input:focus{outline:none;border-bottom-color:#f5a623;}
+.pos-input{
+  background:#3a3a3c;border:1px solid #48484a;border-radius:4px;
+  color:#f5a623;font-size:11px;font-weight:700;text-align:center;padding:2px;width:100%;
+}
+.pos-input:focus{outline:none;border-color:#f5a623;}
+.play-cell{
+  background:#3a3a3c;border:1px solid #48484a;border-radius:6px;
+  min-height:32px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:12px;font-weight:800;color:#636366;
+  -webkit-tap-highlight-color:transparent;transition:all 0.15s;
+}
+.play-cell.hit{background:#1e5c2e;border-color:#2ecc71;color:#2ecc71;}
+.play-cell.out{background:#5c1e1e;border-color:#e74c3c;color:#e74c3c;}
+.play-cell.walk{background:#3a3a1e;border-color:#f5a623;color:#f5a623;}
+.play-cell.strikeout{background:#4a1e5c;border-color:#9b59b6;color:#9b59b6;}
+.play-cell.error{background:#5c3a1e;border-color:#e67e22;color:#e67e22;}
+.run-toggle{
+  background:#2c2c2e;border:1.5px solid #48484a;border-radius:6px;
+  min-height:32px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:11px;font-weight:800;color:#48484a;
+  transition:all 0.15s;-webkit-tap-highlight-color:transparent;user-select:none;
+}
+.run-toggle.scored{background:#1e3a5c;border-color:#3498db;color:#3498db;}
+.pitch-counter{display:flex;align-items:center;justify-content:center;gap:3px;}
+.pc-btn{
+  width:26px;height:32px;border-radius:6px;border:1.5px solid #48484a;
+  background:#3a3a3c;color:#f2f2f7;font-size:17px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;flex-shrink:0;
+}
+.pc-btn:active{background:#555;}
+.pc-val{min-width:28px;text-align:center;font-size:13px;font-weight:700;color:#3498db;}
+.ab-cell{text-align:center;font-size:12px;font-weight:700;color:#f5a623;}
+.totals-bar{
+  background:#1a3a5c;border-top:2px solid #f5a623;padding:8px 10px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+}
+.tot-item{background:#0a2240;border-radius:6px;padding:5px 4px;text-align:center;}
+.tot-label{font-size:9px;color:#8e8e93;text-transform:uppercase;letter-spacing:0.5px;}
+.tot-val{font-size:16px;font-weight:800;margin-top:1px;}
+.tot-val.runs{color:#3498db;}.tot-val.hits{color:#2ecc71;}
+.tot-val.walks{color:#f5a623;}.tot-val.pitches{color:#9b59b6;}
+
+/* ── Pitchers Page ── */
+.pitchers-team-tabs{display:flex;margin:10px 0 0;border-radius:10px;overflow:hidden;background:#2c2c2e;}
+.pitchers-team-tab{
+  flex:1;padding:9px;border:none;background:transparent;
+  color:#8e8e93;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;
+}
+.pitchers-team-tab.active{background:#f5a623;color:#1c1c1e;border-radius:10px;}
+.pitchers-pane{display:none;}
+.pitchers-pane.active{display:block;}
+
+.pitcher-card{
+  background:#2c2c2e;border-radius:12px;margin-top:10px;overflow:hidden;
+}
+.pitcher-header{
+  background:#1a3a5c;padding:8px 12px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid #0a2240;
+}
+.pitcher-num-badge{
+  background:#f5a623;color:#1c1c1e;border-radius:6px;
+  font-size:12px;font-weight:800;padding:2px 8px;min-width:30px;text-align:center;
+}
+.pitcher-name-input{
+  flex:1;background:transparent;border:none;border-bottom:1px solid #48484a;
+  color:#f2f2f7;font-size:14px;font-weight:600;padding:2px 4px;
+}
+.pitcher-name-input:focus{outline:none;border-bottom-color:#f5a623;}
+.pitcher-innings-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:0;
+}
+.pitcher-inn-cell{
+  padding:6px 4px;border-right:1px solid #3a3a3c;border-bottom:1px solid #3a3a3c;
+}
+.pitcher-inn-cell:last-child{border-right:none;}
+.pitcher-inn-label{font-size:9px;color:#8e8e93;text-align:center;margin-bottom:4px;font-weight:700;}
+.bs-row{display:flex;gap:3px;justify-content:center;}
+.bs-counter{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.bs-label{font-size:8px;font-weight:700;}
+.bs-label.b{color:#2ecc71;}.bs-label.s{color:#e74c3c;}
+.bs-ctrl{display:flex;align-items:center;gap:2px;}
+.bs-btn{
+  width:18px;height:18px;border-radius:4px;border:1px solid #48484a;
+  background:#3a3a3c;color:#f2f2f7;font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;
+}
+.bs-btn:active{background:#555;}
+.bs-val{font-size:11px;font-weight:800;min-width:14px;text-align:center;}
+.bs-val.bv{color:#2ecc71;}.bs-val.sv{color:#e74c3c;}
+.pitcher-totals-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  background:#0a2240;border-top:1px solid #f5a623;
+}
+.pt-cell{padding:6px 4px;text-align:center;border-right:1px solid #1a3a5c;}
+.pt-cell:last-child{border-right:none;}
+.pt-cell-label{font-size:9px;color:#8e8e93;}
+.pt-cell-val{font-size:14px;font-weight:800;}
+.pt-cell-val.b{color:#2ecc71;}.pt-cell-val.s{color:#e74c3c;}.pt-cell-val.p{color:#9b59b6;}
+
+/* ── Game Summary Page ── */
+.game-summary{margin-top:10px;}
+.summary-section{background:#2c2c2e;border-radius:12px;margin-bottom:12px;overflow:hidden;}
+.summary-title{
+  background:#1a3a5c;padding:8px 14px;font-size:13px;font-weight:700;color:#f5a623;
+  border-bottom:2px solid #f5a623;
+}
+/* Linescore */
+.linescore{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.linescore-table{width:100%;border-collapse:collapse;min-width:360px;}
+.linescore-table th,.linescore-table td{
+  padding:7px 6px;text-align:center;font-size:12px;border-bottom:1px solid #3a3a3c;
+}
+.linescore-table th{background:#0a2240;color:#f5a623;font-size:10px;}
+.linescore-table td.team-name-cell{text-align:left;padding-left:10px;font-weight:700;}
+.linescore-table td.total-cell{font-weight:800;font-size:14px;background:#0a2240;}
+.linescore-table td.home-color{color:#f5a623;}.linescore-table td.away-color{color:#e74c3c;}
+.linescore-table tr.home-row td{border-bottom:1px solid #1a3a5c;}
+
+/* Per-inning detail */
+.inning-detail{padding:10px;}
+.inn-detail-row{margin-bottom:10px;}
+.inn-detail-title{font-size:11px;font-weight:700;color:#f5a623;margin-bottom:6px;padding:4px 8px;background:#1a3a5c;border-radius:6px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.detail-team-box{background:#3a3a3c;border-radius:8px;padding:6px 8px;}
+.detail-team-label{font-size:9px;color:#8e8e93;font-weight:700;margin-bottom:4px;}
+.detail-stat-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;}
+.detail-stat-row span:first-child{color:#8e8e93;}
+.detail-stat-row span:last-child{font-weight:700;}
+
+/* ── Legend ── */
+.legend{
+  margin:0 0 12px;background:#2c2c2e;border-radius:10px;
+  padding:9px 12px;display:flex;flex-wrap:wrap;gap:8px;
+}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#8e8e93;}
+.legend-dot{width:10px;height:10px;border-radius:2px;border:1.5px solid;}
+
+/* ── Reset ── */
+.reset-btn{
+  width:100%;padding:12px;background:#5c1e1e;border:1.5px solid #e74c3c;
+  border-radius:10px;color:#e74c3c;font-size:15px;font-weight:700;cursor:pointer;
+  margin-bottom:12px;
+}
+
+/* ── Modal ── */
+.modal-overlay{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.75);z-index:100;justify-content:center;align-items:flex-end;
+}
+.modal-overlay.open{display:flex;}
+.modal{
+  background:#2c2c2e;border-radius:16px 16px 0 0;
+  padding:20px 16px calc(28px + env(safe-area-inset-bottom));
+  width:100%;max-width:500px;
+}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:14px;color:#f5a623;text-align:center;}
+.modal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.modal-btn{
+  padding:14px 6px;border-radius:10px;border:2px solid transparent;
+  font-size:13px;font-weight:700;cursor:pointer;text-align:center;
+}
+.modal-btn.hit{background:#1e5c2e;border-color:#2ecc71;color:#2ecc71;}
+.modal-btn.out{background:#5c1e1e;border-color:#e74c3c;color:#e74c3c;}
+.modal-btn.walk{background:#3a3a1e;border-color:#f5a623;color:#f5a623;}
+.modal-btn.strikeout{background:#4a1e5c;border-color:#9b59b6;color:#9b59b6;}
+.modal-btn.error{background:#5c3a1e;border-color:#e67e22;color:#e67e22;}
+.modal-btn.clear{background:#3a3a3c;border-color:#636366;color:#f2f2f7;}
+.modal-cancel{
+  width:100%;padding:13px;background:#3a3a3c;border:none;
+  border-radius:10px;color:#f2f2f7;font-size:15px;font-weight:600;cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<div id="installBanner">
+  <strong>📲 Add to Home Screen</strong> — Tap Share → "Add to Home Screen"
+  <br><button onclick="document.getElementById('installBanner').style.display='none'">Got it ✓</button>
+</div>
+
+<header>
+  <div class="header-top">
+    <h1>⚾ Scoresheet</h1>
+    <div class="score-display">
+      <div class="score-badge home" id="scoreHome">0</div>
+      <div class="score-sep">-</div>
+      <div class="score-badge away" id="scoreAway">0</div>
+    </div>
+  </div>
+  <div class="header-sub" id="headerSub">Home vs Away</div>
+</header>
+
+<!-- Game Info (always visible) -->
+<div style="padding:0 12px;">
+  <div class="game-info">
+    <input type="date" id="gameDate" />
+    <input type="text" id="gameLocation" placeholder="📍 Venue" />
+  </div>
+</div>
+
+<!-- ── HOME TEAM PAGE ── -->
+<div class="page active" id="page-home">
+  <div class="inning-selector">
+    <label>Inning:</label>
+    <div class="inning-btns" id="inningBtnsHome"></div>
+  </div>
+  <div class="team-name-row" style="margin-top:10px;">
+    <input type="text" placeholder="Home Team Name" id="teamName0" />
+  </div>
+  <div class="player-table" id="scoresheet0"></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>Hit</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5c1e1e;border-color:#e74c3c"></div>Out</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4a1e5c;border-color:#9b59b6"></div>K</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3a3a1e;border-color:#f5a623"></div>BB</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e3a5c;border-color:#3498db"></div>Run</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5c3a1e;border-color:#e67e22"></div>Error</div>
+  </div>
+</div>
+
+<!-- ── AWAY TEAM PAGE ── -->
+<div class="page" id="page-away">
+  <div class="inning-selector">
+    <label>Inning:</label>
+    <div class="inning-btns" id="inningBtnsAway"></div>
+  </div>
+  <div class="team-name-row" style="margin-top:10px;">
+    <input type="text" placeholder="Away Team Name" id="teamName1" />
+  </div>
+  <div class="player-table" id="scoresheet1"></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>Hit</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5c1e1e;border-color:#e74c3c"></div>Out</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4a1e5c;border-color:#9b59b6"></div>K</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3a3a1e;border-color:#f5a623"></div>BB</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e3a5c;border-color:#3498db"></div>Run</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5c3a1e;border-color:#e67e22"></div>Error</div>
+  </div>
+</div>
+
+<!-- ── PITCHERS PAGE ── -->
+<div class="page" id="page-pitchers">
+  <div class="pitchers-team-tabs">
+    <button class="pitchers-team-tab active" onclick="switchPitcherTeam(0)">🔵 Home Pitchers</button>
+    <button class="pitchers-team-tab" onclick="switchPitcherTeam(1)">🔴 Away Pitchers</button>
+  </div>
+  <div class="pitchers-pane active" id="pitchers-pane-0"></div>
+  <div class="pitchers-pane" id="pitchers-pane-1"></div>
+</div>
+
+<!-- ── GAME SUMMARY PAGE ── -->
+<div class="page" id="page-game">
+  <div class="game-summary" id="gameSummary"></div>
+  <button class="reset-btn" onclick="confirmReset()">🗑️ Reset Scoresheet</button>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-home" onclick="switchPage('home')">
+    <span class="nav-icon">🔵</span>Home
+  </button>
+  <button class="nav-btn" id="nav-away" onclick="switchPage('away')">
+    <span class="nav-icon">🔴</span>Away
+  </button>
+  <button class="nav-btn" id="nav-pitchers" onclick="switchPage('pitchers')">
+    <span class="nav-icon">⚾</span>Pitchers
+  </button>
+  <button class="nav-btn" id="nav-game" onclick="switchPage('game')">
+    <span class="nav-icon">📋</span>Game
+  </button>
+</nav>
+
+<!-- Play Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Record Play</h3>
+    <div class="modal-grid">
+      <button class="modal-btn hit"       onclick="selectPlay('hit')">🟢 Hit</button>
+      <button class="modal-btn out"       onclick="selectPlay('out')">🔴 Out</button>
+      <button class="modal-btn strikeout" onclick="selectPlay('strikeout')">🟣 K</button>
+      <button class="modal-btn walk"      onclick="selectPlay('walk')">🟡 Walk</button>
+      <button class="modal-btn error"     onclick="selectPlay('error')">🟠 Error</button>
+      <button class="modal-btn clear"     onclick="selectPlay('')">✖ Clear</button>
+    </div>
+    <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ── Apple icon ────────────────────────────────────────────────────────────
+(function(){
+  try{
+    const c=document.createElement('canvas');c.width=180;c.height=180;
+    const x=c.getContext('2d');x.fillStyle='#0a2240';x.fillRect(0,0,180,180);
+    x.font='120px serif';x.textAlign='center';x.textBaseline='middle';x.fillText('⚾',90,95);
+    document.getElementById('appleIcon').href=c.toDataURL('image/png');
+  }catch(e){}
+})();
+if(!window.navigator.standalone) document.getElementById('installBanner').style.display='block';
+if('serviceWorker' in navigator){
+  const sw=`const C='ss-v3';self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('fetch',e=>{e.respondWith(caches.open(C).then(cache=>cache.match(e.request).then(r=>{if(r)return r;return fetch(e.request).then(res=>{cache.put(e.request,res.clone());return res;}).catch(()=>r);})));});`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const INNINGS=6,PLAYERS=12,PITCHERS=6;
+let activeInning=[0,0]; // per team
+let pendingCell=null;
+const playLabels={hit:'H',out:'O',walk:'BB',strikeout:'K',error:'E','':''};
+
+// ── State ─────────────────────────────────────────────────────────────────
+function freshPlayer(){
+  return{name:'',pos:'',innings:Array.from({length:INNINGS},()=>({play:'',run:false,pitches:0}))};
+}
+function freshPitcher(){
+  return{name:'',innings:Array.from({length:INNINGS},()=>({balls:0,strikes:0}))};
+}
+const state={
+  teams:[
+    Array.from({length:PLAYERS},freshPlayer),
+    Array.from({length:PLAYERS},freshPlayer)
+  ],
+  pitchers:[
+    Array.from({length:PITCHERS},freshPitcher),
+    Array.from({length:PITCHERS},freshPitcher)
+  ]
+};
+
+// ── Persist ───────────────────────────────────────────────────────────────
+function save(){
+  try{localStorage.setItem('bss3',JSON.stringify(state));}catch(e){}
+  saveInfo();
+}
+function saveInfo(){
+  try{
+    localStorage.setItem('bss3_info',JSON.stringify({
+      date:document.getElementById('gameDate').value,
+      loc:document.getElementById('gameLocation').value,
+      n0:document.getElementById('teamName0').value,
+      n1:document.getElementById('teamName1').value,
+    }));
+  }catch(e){}
+}
+function loadSaved(){
+  try{
+    const s=JSON.parse(localStorage.getItem('bss3'));
+    if(s&&s.teams){
+      for(let t=0;t<2;t++){
+        for(let p=0;p<PLAYERS;p++){
+          if(s.teams[t]&&s.teams[t][p]){
+            state.teams[t][p].name=s.teams[t][p].name||'';
+            state.teams[t][p].pos=s.teams[t][p].pos||'';
+            for(let i=0;i<INNINGS;i++) if(s.teams[t][p].innings&&s.teams[t][p].innings[i]){
+              state.teams[t][p].innings[i].play=s.teams[t][p].innings[i].play||'';
+              state.teams[t][p].innings[i].run=s.teams[t][p].innings[i].run||false;
+              state.teams[t][p].innings[i].pitches=s.teams[t][p].innings[i].pitches||0;
+            }
+          }
+        }
+        for(let p=0;p<PITCHERS;p++){
+          if(s.pitchers&&s.pitchers[t]&&s.pitchers[t][p]){
+            state.pitchers[t][p].name=s.pitchers[t][p].name||'';
+            for(let i=0;i<INNINGS;i++) if(s.pitchers[t][p].innings&&s.pitchers[t][p].innings[i]){
+              state.pitchers[t][p].innings[i].balls=s.pitchers[t][p].innings[i].balls||0;
+              state.pitchers[t][p].innings[i].strikes=s.pitchers[t][p].innings[i].strikes||0;
+            }
+          }
+        }
+      }
+    }
+    const gi=JSON.parse(localStorage.getItem('bss3_info')||'{}');
+    if(gi.date) document.getElementById('gameDate').value=gi.date;
+    if(gi.loc)  document.getElementById('gameLocation').value=gi.loc;
+    if(gi.n0)   document.getElementById('teamName0').value=gi.n0;
+    if(gi.n1)   document.getElementById('teamName1').value=gi.n1;
+  }catch(e){}
+}
+['gameDate','gameLocation','teamName0','teamName1'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{saveInfo();updateHeaderSub();});
+});
+
+// ── Page Navigation ───────────────────────────────────────────────────────
+function switchPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('nav-'+page).classList.add('active');
+  if(page==='game') buildGameSummary();
+}
+
+// ── Inning Buttons ────────────────────────────────────────────────────────
+function buildInningBtns(team){
+  const id=team===0?'inningBtnsHome':'inningBtnsAway';
+  const wrap=document.getElementById(id);
+  wrap.innerHTML='';
+  for(let i=0;i<INNINGS;i++){
+    const btn=document.createElement('button');
+    btn.className='inn-btn'+(i===activeInning[team]?' active':'');
+    btn.textContent=i+1;
+    btn.addEventListener('click',()=>{
+      activeInning[team]=i;
+      document.querySelectorAll('#'+id+' .inn-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+      buildScoresheet(team);
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+// ── Scoresheet ────────────────────────────────────────────────────────────
+function buildScoresheet(team){
+  const inn=activeInning[team];
+  const container=document.getElementById('scoresheet'+team);
+  container.innerHTML='';
+  const hdr=document.createElement('div');
+  hdr.className='row-grid table-header';
+  hdr.innerHTML='<div>#</div><div class="lbl">Player</div><div>Pos</div><div>Play</div><div>R</div><div style="text-align:center">Pitches</div><div>AB</div>';
+  container.appendChild(hdr);
+  for(let p=0;p<PLAYERS;p++){
+    const row=document.createElement('div');
+    row.className='row-grid player-row';
+    const numD=document.createElement('div');
+    numD.className='player-num';numD.textContent=p+1;
+    const nameIn=document.createElement('input');
+    nameIn.className='player-name-input';nameIn.placeholder='Player '+(p+1);
+    nameIn.value=state.teams[team][p].name;
+    nameIn.addEventListener('input',e=>{state.teams[team][p].name=e.target.value;save();});
+    const posIn=document.createElement('input');
+    posIn.className='pos-input';posIn.placeholder='POS';posIn.maxLength=3;
+    posIn.value=state.teams[team][p].pos;
+    posIn.addEventListener('input',e=>{state.teams[team][p].pos=e.target.value.toUpperCase();save();});
+    const playCell=document.createElement('div');
+    playCell.className='play-cell';
+    const play=state.teams[team][p].innings[inn].play;
+    if(play){playCell.classList.add(play);playCell.textContent=playLabels[play];}
+    else playCell.textContent='—';
+    playCell.addEventListener('click',()=>openModal(team,p));
+    const runBtn=document.createElement('div');
+    runBtn.className='run-toggle'+(state.teams[team][p].innings[inn].run?' scored':'');
+    runBtn.textContent='R';
+    runBtn.addEventListener('click',()=>{
+      state.teams[team][p].innings[inn].run=!state.teams[team][p].innings[inn].run;
+      runBtn.classList.toggle('scored',state.teams[team][p].innings[inn].run);
+      updateScoreBadges();save();
+    });
+    const pcWrap=document.createElement('div');pcWrap.className='pitch-counter';
+    const minB=document.createElement('div');minB.className='pc-btn';minB.textContent='−';
+    const pcV=document.createElement('div');pcV.className='pc-val';
+    pcV.textContent=state.teams[team][p].innings[inn].pitches||0;
+    const plusB=document.createElement('div');plusB.className='pc-btn';plusB.textContent='+';
+    plusB.addEventListener('click',()=>{
+      state.teams[team][p].innings[inn].pitches=(state.teams[team][p].innings[inn].pitches||0)+1;
+      pcV.textContent=state.teams[team][p].innings[inn].pitches;
+      updateTotalsBar(team);save();
+    });
+    minB.addEventListener('click',()=>{
+      if((state.teams[team][p].innings[inn].pitches||0)>0){
+        state.teams[team][p].innings[inn].pitches--;
+        pcV.textContent=state.teams[team][p].innings[inn].pitches;
+        updateTotalsBar(team);save();
+      }
+    });
+    pcWrap.appendChild(minB);pcWrap.appendChild(pcV);pcWrap.appendChild(plusB);
+    const abD=document.createElement('div');abD.className='ab-cell';
+    abD.id='ab-'+team+'-'+p;abD.textContent=calcAB(team,p)||'';
+    row.appendChild(numD);row.appendChild(nameIn);row.appendChild(posIn);
+    row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(pcWrap);row.appendChild(abD);
+    container.appendChild(row);
+  }
+  const totBar=document.createElement('div');totBar.className='totals-bar';
+  ['Runs','Hits','Walks','Pitches'].forEach(label=>{
+    const item=document.createElement('div');item.className='tot-item';
+    const key=label.toLowerCase();
+    item.innerHTML='<div class="tot-label">Inn '+(inn+1)+' '+label+'</div><div class="tot-val '+key+'" id="tot'+label+'-'+team+'">0</div>';
+    totBar.appendChild(item);
+  });
+  container.appendChild(totBar);
+  updateTotalsBar(team);
+}
+
+function calcAB(team,p){return state.teams[team][p].innings.filter(x=>x.play!=='').length;}
+
+function updateTotalsBar(team){
+  const inn=activeInning[team];
+  let runs=0,hits=0,walks=0,pitches=0;
+  state.teams[team].forEach(pl=>{
+    const i=pl.innings[inn];
+    if(i.run)runs++;
+    if(i.play==='hit')hits++;
+    if(i.play==='walk')walks++;
+    pitches+=i.pitches||0;
+  });
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('totRuns-'+team,runs);set('totHits-'+team,hits);
+  set('totWalks-'+team,walks);set('totPitches-'+team,pitches);
+  for(let p=0;p<PLAYERS;p++){const el=document.getElementById('ab-'+team+'-'+p);if(el)el.textContent=calcAB(team,p)||'';}
+}
+
+function updateScoreBadges(){
+  let h=0,a=0;
+  state.teams[0].forEach(pl=>pl.innings.forEach(i=>{if(i.run)h++;}));
+  state.teams[1].forEach(pl=>pl.innings.forEach(i=>{if(i.run)a++;}));
+  document.getElementById('scoreHome').textContent=h;
+  document.getElementById('scoreAway').textContent=a;
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(team,player){
+  pendingCell={team,player};
+  const pname=state.teams[team][player].name||'Player '+(player+1);
+  document.getElementById('modalTitle').textContent=pname+' — Inning '+(activeInning[team]+1);
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function selectPlay(play){
+  if(!pendingCell)return;
+  const{team,player}=pendingCell;
+  state.teams[team][player].innings[activeInning[team]].play=play;
+  save();buildScoresheet(team);closeModal();
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');pendingCell=null;}
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── Pitchers Page ─────────────────────────────────────────────────────────
+let activePitcherTeam=0;
+function switchPitcherTeam(team){
+  activePitcherTeam=team;
+  document.querySelectorAll('.pitchers-team-tab').forEach((b,i)=>b.classList.toggle('active',i===team));
+  document.querySelectorAll('.pitchers-pane').forEach((p,i)=>p.classList.toggle('active',i===team));
+}
+
+function buildPitchersPage(){
+  [0,1].forEach(team=>buildPitcherPane(team));
+}
+
+function buildPitcherPane(team){
+  const container=document.getElementById('pitchers-pane-'+team);
+  container.innerHTML='';
+  for(let p=0;p<PITCHERS;p++){
+    const card=document.createElement('div');
+    card.className='pitcher-card';
+    // Header row
+    const hdr=document.createElement('div');
+    hdr.className='pitcher-header';
+    const badge=document.createElement('div');badge.className='pitcher-num-badge';badge.textContent='P'+(p+1);
+    const nameIn=document.createElement('input');
+    nameIn.className='pitcher-name-input';nameIn.placeholder='Pitcher '+(p+1)+' name';
+    nameIn.value=state.pitchers[team][p].name;
+    nameIn.addEventListener('input',e=>{state.pitchers[team][p].name=e.target.value;save();});
+    hdr.appendChild(badge);hdr.appendChild(nameIn);
+    card.appendChild(hdr);
+    // Innings grid
+    const grid=document.createElement('div');grid.className='pitcher-innings-grid';
+    for(let i=0;i<INNINGS;i++){
+      const cell=document.createElement('div');cell.className='pitcher-inn-cell';
+      const lbl=document.createElement('div');lbl.className='pitcher-inn-label';lbl.textContent='Inn '+(i+1);
+      const bsRow=document.createElement('div');bsRow.className='bs-row';
+      // Balls counter
+      const ballsDiv=makeBSCounter('B','b',team,p,i,'balls');
+      // Strikes counter
+      const strikesDiv=makeBSCounter('S','s',team,p,i,'strikes');
+      bsRow.appendChild(ballsDiv);bsRow.appendChild(strikesDiv);
+      cell.appendChild(lbl);cell.appendChild(bsRow);
+      grid.appendChild(cell);
+    }
+    card.appendChild(grid);
+    // Totals row
+    const totRow=document.createElement('div');totRow.className='pitcher-totals-row';
+    const totalBalls=state.pitchers[team][p].innings.reduce((a,c)=>a+(c.balls||0),0);
+    const totalStrikes=state.pitchers[team][p].innings.reduce((a,c)=>a+(c.strikes||0),0);
+    const totalPitches=totalBalls+totalStrikes;
+    totRow.innerHTML=
+      '<div class="pt-cell"><div class="pt-cell-label">Balls</div><div class="pt-cell-val b" id="pTotB-'+team+'-'+p+'">'+totalBalls+'</div></div>'+
+      '<div class="pt-cell"><div class="pt-cell-label">Strikes</div><div class="pt-cell-val s" id="pTotS-'+team+'-'+p+'">'+totalStrikes+'</div></div>'+
+      '<div class="pt-cell"><div class="pt-cell-label">Pitches</div><div class="pt-cell-val p" id="pTotP-'+team+'-'+p+'">'+totalPitches+'</div></div>';
+    card.appendChild(totRow);
+    container.appendChild(card);
+  }
+}
+
+function makeBSCounter(label,cls,team,pitcher,inning,field){
+  const wrap=document.createElement('div');wrap.className='bs-counter';
+  const lbl=document.createElement('div');lbl.className='bs-label '+cls;lbl.textContent=label;
+  const ctrl=document.createElement('div');ctrl.className='bs-ctrl';
+  const minB=document.createElement('div');minB.className='bs-btn';minB.textContent='−';
+  const val=document.createElement('div');val.className='bs-val '+(cls==='b'?'bv':'sv');
+  val.id='bs-'+team+'-'+pitcher+'-'+inning+'-'+field;
+  val.textContent=state.pitchers[team][pitcher].innings[inning][field]||0;
+  const plusB=document.createElement('div');plusB.className='bs-btn';plusB.textContent='+';
+  plusB.addEventListener('click',()=>{
+    state.pitchers[team][pitcher].innings[inning][field]=(state.pitchers[team][pitcher].innings[inning][field]||0)+1;
+    val.textContent=state.pitchers[team][pitcher].innings[inning][field];
+    updatePitcherTotals(team,pitcher);save();
+  });
+  minB.addEventListener('click',()=>{
+    if((state.pitchers[team][pitcher].innings[inning][field]||0)>0){
+      state.pitchers[team][pitcher].innings[inning][field]--;
+      val.textContent=state.pitchers[team][pitcher].innings[inning][field];
+      updatePitcherTotals(team,pitcher);save();
+    }
+  });
+  ctrl.appendChild(minB);ctrl.appendChild(val);ctrl.appendChild(plusB);
+  wrap.appendChild(lbl);wrap.appendChild(ctrl);
+  return wrap;
+}
+
+function updatePitcherTotals(team,p){
+  const b=state.pitchers[team][p].innings.reduce((a,c)=>a+(c.balls||0),0);
+  const s=state.pitchers[team][p].innings.reduce((a,c)=>a+(c.strikes||0),0);
+  const bEl=document.getElementById('pTotB-'+team+'-'+p);
+  const sEl=document.getElementById('pTotS-'+team+'-'+p);
+  const pEl=document.getElementById('pTotP-'+team+'-'+p);
+  if(bEl)bEl.textContent=b;if(sEl)sEl.textContent=s;if(pEl)pEl.textContent=b+s;
+}
+
+// ── Game Summary ──────────────────────────────────────────────────────────
+function buildGameSummary(){
+  const container=document.getElementById('gameSummary');
+  container.innerHTML='';
+  const n0=document.getElementById('teamName0').value||'Home';
+  const n1=document.getElementById('teamName1').value||'Away';
+
+  // Linescore
+  const lsSection=document.createElement('div');lsSection.className='summary-section';
+  lsSection.innerHTML='<div class="summary-title">📊 Linescore</div>';
+  const lsWrap=document.createElement('div');lsWrap.className='linescore';
+  const tbl=document.createElement('table');tbl.className='linescore-table';
+  // Header
+  let hdrHTML='<thead><tr><th>Team</th>';
+  for(let i=0;i<INNINGS;i++) hdrHTML+='<th>'+(i+1)+'</th>';
+  hdrHTML+='<th>R</th><th>H</th><th>BB</th></tr></thead>';
+  // Build rows
+  const rows=[{team:0,label:n0,cls:'home-color'},{team:1,label:n1,cls:'away-color'}];
+  let bodyHTML='<tbody>';
+  rows.forEach(({team,label,cls})=>{
+    let totalRuns=0,totalHits=0,totalBB=0;
+    let rowHTML='<tr class="'+(team===0?'home-row':'')+'">';
+    rowHTML+='<td class="team-name-cell '+cls+'">'+label+'</td>';
+    for(let i=0;i<INNINGS;i++){
+      let innRuns=0,innHits=0;
+      state.teams[team].forEach(pl=>{
+        if(pl.innings[i].run)innRuns++;
+        if(pl.innings[i].play==='hit')innHits++;
+        if(pl.innings[i].play==='walk')totalBB++;
+      });
+      totalRuns+=innRuns;totalHits+=innHits;
+      rowHTML+='<td>'+(innRuns||'-')+'</td>';
+    }
+    // recalc totals correctly
+    totalRuns=0;totalHits=0;totalBB=0;
+    state.teams[team].forEach(pl=>pl.innings.forEach(inn=>{
+      if(inn.run)totalRuns++;
+      if(inn.play==='hit')totalHits++;
+      if(inn.play==='walk')totalBB++;
+    }));
+    rowHTML+='<td class="total-cell '+cls+'">'+totalRuns+'</td>';
+    rowHTML+='<td class="total-cell">'+totalHits+'</td>';
+    rowHTML+='<td class="total-cell">'+totalBB+'</td>';
+    rowHTML+='</tr>';
+    bodyHTML+=rowHTML;
+  });
+  bodyHTML+='</tbody>';
+  tbl.innerHTML=hdrHTML+bodyHTML;
+  lsWrap.appendChild(tbl);lsSection.appendChild(lsWrap);
+  container.appendChild(lsSection);
+
+  // Per-inning detail
+  const detailSection=document.createElement('div');detailSection.className='summary-section';
+  detailSection.innerHTML='<div class="summary-title">📋 Inning-by-Inning Detail</div>';
+  const detailInner=document.createElement('div');detailInner.className='inning-detail';
+  for(let i=0;i<INNINGS;i++){
+    const innRow=document.createElement('div');innRow.className='inn-detail-row';
+    innRow.innerHTML='<div class="inn-detail-title">Inning '+(i+1)+'</div>';
+    const dGrid=document.createElement('div');dGrid.className='detail-grid';
+    [0,1].forEach(team=>{
+      const tname=team===0?n0:n1;
+      let runs=0,hits=0,walks=0,ks=0,errors=0,pitches=0;
+      state.teams[team].forEach(pl=>{
+        const inn=pl.innings[i];
+        if(inn.run)runs++;
+        if(inn.play==='hit')hits++;
+        if(inn.play==='walk')walks++;
+        if(inn.play==='strikeout')ks++;
+        if(inn.play==='error')errors++;
+        pitches+=inn.pitches||0;
+      });
+      // Pitcher balls/strikes for this inning
+      let balls=0,strikes=0;
+      state.pitchers[team].forEach(pt=>{
+        balls+=pt.innings[i].balls||0;
+        strikes+=pt.innings[i].strikes||0;
+      });
+      const box=document.createElement('div');box.className='detail-team-box';
+      box.innerHTML=
+        '<div class="detail-team-label">'+(team===0?'🔵 ':'🔴 ')+tname+'</div>'+
+        '<div class="detail-stat-row"><span>Runs</span><span style="color:#3498db">'+runs+'</span></div>'+
+        '<div class="detail-stat-row"><span>Hits</span><span style="color:#2ecc71">'+hits+'</span></div>'+
+        '<div class="detail-stat-row"><span>Walks</span><span style="color:#f5a623">'+walks+'</span></div>'+
+        '<div class="detail-stat-row"><span>Strikeouts</span><span style="color:#9b59b6">'+ks+'</span></div>'+
+        '<div class="detail-stat-row"><span>Errors</span><span style="color:#e67e22">'+errors+'</span></div>'+
+        '<div class="detail-stat-row"><span>Pitches</span><span style="color:#9b59b6">'+pitches+'</span></div>'+
+        '<div class="detail-stat-row"><span>Balls</span><span style="color:#2ecc71">'+balls+'</span></div>'+
+        '<div class="detail-stat-row"><span>Strikes</span><span style="color:#e74c3c">'+strikes+'</span></div>';
+      dGrid.appendChild(box);
+    });
+    innRow.appendChild(dGrid);detailInner.appendChild(innRow);
+  }
+  detailSection.appendChild(detailInner);container.appendChild(detailSection);
+
+  // Pitcher summary
+  const pitchSection=document.createElement('div');pitchSection.className='summary-section';
+  pitchSection.innerHTML='<div class="summary-title">⚾ Pitcher Summary</div>';
+  const ptInner=document.createElement('div');ptInner.style.padding='10px';
+  [0,1].forEach(team=>{
+    const tname=team===0?n0:n1;
+    const tLabel=document.createElement('div');
+    tLabel.style.cssText='font-size:12px;font-weight:700;color:'+(team===0?'#f5a623':'#e74c3c')+';margin-bottom:6px;margin-top:'+(team>0?'10px':'0');
+    tLabel.textContent=(team===0?'🔵 ':'🔴 ')+tname;
+    ptInner.appendChild(tLabel);
+    state.pitchers[team].forEach((pt,p)=>{
+      if(!pt.name&&pt.innings.every(i=>!i.balls&&!i.strikes)) return;
+      const pname=pt.name||'Pitcher '+(p+1);
+      const tb=pt.innings.reduce((a,c)=>a+(c.balls||0),0);
+      const ts=pt.innings.reduce((a,c)=>a+(c.strikes||0),0);
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;justify-content:space-between;background:#3a3a3c;border-radius:6px;padding:6px 10px;margin-bottom:4px;font-size:12px;';
+      row.innerHTML='<span>'+pname+'</span><span><span style="color:#2ecc71">B:'+tb+'</span> <span style="color:#e74c3c">S:'+ts+'</span> <span style="color:#9b59b6">P:'+(tb+ts)+'</span></span>';
+      ptInner.appendChild(row);
+    });
+  });
+  pitchSection.appendChild(ptInner);container.appendChild(pitchSection);
+}
+
+// ── Header subtitle ───────────────────────────────────────────────────────
+function updateHeaderSub(){
+  const n0=document.getElementById('teamName0').value||'Home';
+  const n1=document.getElementById('teamName1').value||'Away';
+  const dt=document.getElementById('gameDate').value;
+  const loc=document.getElementById('gameLocation').value;
+  let parts=[n0+' vs '+n1];
+  if(dt) parts.push(new Date(dt+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}));
+  if(loc) parts.push(loc);
+  document.getElementById('headerSub').textContent=parts.join(' · ');
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function confirmReset(){
+  if(confirm('Reset entire scoresheet? This cannot be undone.')){
+    for(let t=0;t<2;t++){
+      for(let p=0;p<PLAYERS;p++) state.teams[t][p]=freshPlayer();
+      for(let p=0;p<PITCHERS;p++) state.pitchers[t][p]=freshPitcher();
+    }
+    activeInning=[0,0];
+    buildScoresheet(0);buildScoresheet(1);buildPitchersPage();
+    ['teamName0','teamName1','gameDate','gameLocation'].forEach(id=>document.getElementById(id).value='');
+    try{localStorage.removeItem('bss3');localStorage.removeItem('bss3_info');}catch(e){}
+    updateHeaderSub();updateScoreBadges();
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadSaved();
+buildInningBtns(0);buildInningBtns(1);
+buildScoresheet(0);buildScoresheet(1);
+buildPitchersPage();
+updateHeaderSub();updateScoreBadges();
+</script>
+</body>
+</html>
