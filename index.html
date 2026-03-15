@@ -321,6 +321,32 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   border-radius:10px;color:#f2f2f7;font-size:15px;font-weight:600;cursor:pointer;
 }
 
+/* ── Swap Button ── */
+.swap-bar{
+  display:flex;gap:8px;margin-bottom:8px;align-items:center;
+}
+.swap-btn{
+  flex:1;padding:10px;background:#2c2c2e;border:1.5px solid #48484a;
+  border-radius:10px;color:#8e8e93;font-size:13px;font-weight:700;cursor:pointer;
+  transition:all 0.2s;text-align:center;
+}
+.swap-btn.active{background:#1a3a5c;border-color:#f5a623;color:#f5a623;}
+.swap-cancel-btn{
+  padding:10px 14px;background:#5c1e1e;border:1.5px solid #e74c3c;
+  border-radius:10px;color:#e74c3c;font-size:13px;font-weight:700;cursor:pointer;
+  display:none;
+}
+.swap-cancel-btn.visible{display:block;}
+.swap-hint{
+  font-size:11px;color:#f5a623;text-align:center;padding:6px 10px;
+  background:#1a3a5c;border-radius:8px;margin-bottom:8px;display:none;
+}
+.swap-hint.visible{display:block;}
+/* Player row highlight during swap */
+.player-row.swap-selected{background:#1a3a5c !important;outline:2px solid #f5a623;}
+.player-row.swap-candidate{cursor:pointer;}
+.player-row.swap-candidate:active{background:#252557 !important;}
+
 /* ── Save Button ── */
 .save-btn{
   width:100%;padding:12px;background:#1a3a5c;border:1.5px solid #f5a623;
@@ -366,6 +392,11 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   <div class="team-name-row" style="margin-top:10px;">
     <input type="text" placeholder="Home Team Name" id="teamName0" />
   </div>
+  <div class="swap-bar" id="swapBar0">
+    <button class="swap-btn" id="swapBtn0" onclick="toggleSwapMode(0)">🔀 Swap Batting Order</button>
+    <button class="swap-cancel-btn" id="swapCancelBtn0" onclick="cancelSwap(0)">✖ Cancel</button>
+  </div>
+  <div class="swap-hint" id="swapHint0">Tap the first player to swap, then tap the second.</div>
   <div class="player-table" id="scoresheet0"></div>
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>1B Single</div>
@@ -389,6 +420,11 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   <div class="team-name-row" style="margin-top:10px;">
     <input type="text" placeholder="Away Team Name" id="teamName1" />
   </div>
+  <div class="swap-bar" id="swapBar1">
+    <button class="swap-btn" id="swapBtn1" onclick="toggleSwapMode(1)">🔀 Swap Batting Order</button>
+    <button class="swap-cancel-btn" id="swapCancelBtn1" onclick="cancelSwap(1)">✖ Cancel</button>
+  </div>
+  <div class="swap-hint" id="swapHint1">Tap the first player to swap, then tap the second.</div>
   <div class="player-table" id="scoresheet1"></div>
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:#1e5c2e;border-color:#2ecc71"></div>1B Single</div>
@@ -475,6 +511,9 @@ if('serviceWorker' in navigator){
 const INNINGS=6,PLAYERS=12,PITCHERS=6;
 let activeInning=[0,0]; // per team
 let pendingCell=null;
+let swapMode=false;
+let swapTeam=-1;
+let swapFirst=-1; // first player index selected
 const playLabels={single:'1B',double:'2B',triple:'3B',homerun:'HR',out:'O',walk:'BB',strikeout:'K',error:'E','':''};
 function isHit(p){return p==='single'||p==='double'||p==='triple'||p==='homerun';}
 
@@ -701,6 +740,14 @@ function buildScoresheet(team){
 
     row.appendChild(numD);row.appendChild(nameIn);row.appendChild(posIn);
     row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(ballsWrap);row.appendChild(strikesWrap);
+    // Swap mode click handler
+    row.addEventListener('click',(e)=>{
+      if(!swapMode||swapTeam!==team) return;
+      // Ignore clicks on interactive children
+      if(e.target.tagName==='INPUT'||e.target.classList.contains('pc-btn')||
+         e.target.classList.contains('play-cell')||e.target.classList.contains('run-toggle')) return;
+      handleSwapClick(team,p,row);
+    });
     container.appendChild(row);
   }
   const totBar=document.createElement('div');totBar.className='totals-bar';
@@ -1029,6 +1076,63 @@ function saveToFile(){
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }catch(e){alert('Save failed: '+e.message);}
+}
+
+// ── Swap Functions ───────────────────────────────────────────────────────
+function toggleSwapMode(team){
+  if(swapMode&&swapTeam===team){
+    cancelSwap(team);
+    return;
+  }
+  swapMode=true;swapTeam=team;swapFirst=-1;
+  document.getElementById('swapBtn'+team).classList.add('active');
+  document.getElementById('swapCancelBtn'+team).classList.add('visible');
+  document.getElementById('swapHint'+team).classList.add('visible');
+  document.getElementById('swapHint'+team).textContent='Tap the FIRST player to swap.';
+  // Add swap-candidate class to all rows
+  const rows=document.getElementById('scoresheet'+team).querySelectorAll('.player-row');
+  rows.forEach(r=>r.classList.add('swap-candidate'));
+}
+
+function cancelSwap(team){
+  swapMode=false;swapTeam=-1;swapFirst=-1;
+  document.getElementById('swapBtn'+team).classList.remove('active');
+  document.getElementById('swapCancelBtn'+team).classList.remove('visible');
+  document.getElementById('swapHint'+team).classList.remove('visible');
+  // Clear highlights
+  const rows=document.getElementById('scoresheet'+team).querySelectorAll('.player-row');
+  rows.forEach(r=>r.classList.remove('swap-candidate','swap-selected'));
+}
+
+function handleSwapClick(team,playerIdx,rowEl){
+  if(swapFirst===-1){
+    // Select first player
+    swapFirst=playerIdx;
+    rowEl.classList.add('swap-selected');
+    rowEl.classList.remove('swap-candidate');
+    document.getElementById('swapHint'+team).textContent=
+      'Player '+(playerIdx+1)+' selected ✓ — now tap the SECOND player to swap with.';
+  } else {
+    // Perform swap
+    const a=swapFirst, b=playerIdx;
+    if(a===b){ cancelSwap(team); return; }
+    // Deep swap all player data
+    const temp=JSON.parse(JSON.stringify(state.teams[team][a]));
+    state.teams[team][a]=JSON.parse(JSON.stringify(state.teams[team][b]));
+    state.teams[team][b]=temp;
+    save();
+    cancelSwap(team);
+    buildScoresheet(team);
+    // Show confirmation briefly
+    const hint=document.getElementById('swapHint'+team);
+    hint.classList.add('visible');
+    hint.style.background='#1e5c2e';hint.style.color='#2ecc71';
+    hint.textContent='✓ Players swapped successfully!';
+    setTimeout(()=>{
+      hint.classList.remove('visible');
+      hint.style.background='';hint.style.color='';
+    },2000);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
