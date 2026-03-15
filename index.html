@@ -118,7 +118,7 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
 .player-table{background:#2c2c2e;border-radius:12px;overflow:hidden;margin-bottom:12px;}
 .row-grid{
   display:grid;
-  grid-template-columns:28px 1fr 40px 50px 36px 80px 80px 34px;
+  grid-template-columns:34px 1fr 40px 50px 36px 80px 80px;
   align-items:center;gap:4px;padding:6px 8px;
 }
 .table-header{background:#1a3a5c;font-size:10px;font-weight:700;color:#f5a623;border-bottom:2px solid #f5a623;}
@@ -128,6 +128,12 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
 .player-row:last-child{border-bottom:none;}
 .player-row:nth-child(even){background:#252527;}
 .player-num{font-size:11px;color:#8e8e93;text-align:center;font-weight:600;}
+.jersey-input{
+  background:#3a3a3c;border:1px solid #48484a;border-radius:6px;
+  color:#f5a623;font-size:13px;font-weight:800;text-align:center;
+  padding:2px;width:100%;min-height:28px;
+}
+.jersey-input:focus{outline:none;border-color:#f5a623;}
 .player-name-input{
   background:transparent;border:none;border-bottom:1px solid #3a3a3c;
   color:#f2f2f7;font-size:12px;padding:2px 4px;width:100%;
@@ -473,16 +479,16 @@ const playLabels={single:'1B',double:'2B',triple:'3B',homerun:'HR',out:'O',walk:
 function isHit(p){return p==='single'||p==='double'||p==='triple'||p==='homerun';}
 
 // ── State ─────────────────────────────────────────────────────────────────
-function freshPlayer(){
-  return{name:'',pos:'',innings:Array.from({length:INNINGS},()=>({play:'',run:false,balls:0,strikes:0}))};
+function freshPlayer(num){
+  return{jersey:num!==undefined?String(num):'',name:'',pos:'',innings:Array.from({length:INNINGS},()=>({play:'',run:false,balls:0,strikes:0}))};
 }
 function freshPitcher(){
   return{name:'',innings:Array.from({length:INNINGS},()=>({balls:0,strikes:0}))};
 }
 const state={
   teams:[
-    Array.from({length:PLAYERS},freshPlayer),
-    Array.from({length:PLAYERS},freshPlayer)
+    Array.from({length:PLAYERS},(_,i)=>freshPlayer(i+1)),
+    Array.from({length:PLAYERS},(_,i)=>freshPlayer(i+1))
   ],
   pitchers:[
     Array.from({length:PITCHERS},freshPitcher),
@@ -512,6 +518,7 @@ function loadSaved(){
       for(let t=0;t<2;t++){
         for(let p=0;p<PLAYERS;p++){
           if(s.teams[t]&&s.teams[t][p]){
+            state.teams[t][p].jersey=s.teams[t][p].jersey!==undefined?String(s.teams[t][p].jersey):String(p+1);
             state.teams[t][p].name=s.teams[t][p].name||'';
             state.teams[t][p].pos=s.teams[t][p].pos||'';
             for(let i=0;i<INNINGS;i++) if(s.teams[t][p].innings&&s.teams[t][p].innings[i]){
@@ -654,13 +661,16 @@ function buildScoresheet(team){
   container.innerHTML='';
   const hdr=document.createElement('div');
   hdr.className='row-grid table-header';
-  hdr.innerHTML='<div>#</div><div class="lbl">Player</div><div>Pos</div><div>Play</div><div>R</div><div style="text-align:center;color:#2ecc71">Balls</div><div style="text-align:center;color:#e74c3c">Strikes</div><div>AB</div>';
+  hdr.innerHTML='<div style="color:#8e8e93;font-size:10px">#</div><div class="lbl">Player</div><div>Pos</div><div>Play</div><div>R</div><div style="text-align:center;color:#2ecc71">Balls</div><div style="text-align:center;color:#e74c3c">Strikes</div>';
   container.appendChild(hdr);
   for(let p=0;p<PLAYERS;p++){
     const row=document.createElement('div');
     row.className='row-grid player-row';
-    const numD=document.createElement('div');
-    numD.className='player-num';numD.textContent=p+1;
+    const numD=document.createElement('input');
+    numD.className='jersey-input';
+    numD.type='text';numD.maxLength=3;numD.placeholder='#';
+    numD.value=state.teams[team][p].jersey||'';
+    numD.addEventListener('input',e=>{state.teams[team][p].jersey=e.target.value;save();});
     const nameIn=document.createElement('input');
     nameIn.className='player-name-input';nameIn.placeholder='Player '+(p+1);
     nameIn.value=state.teams[team][p].name;
@@ -688,10 +698,9 @@ function buildScoresheet(team){
     const ballsWrap=makeBatterCounter(team,p,inn,'balls',4,'#2ecc71');
     // Strikes counter (max 3)
     const strikesWrap=makeBatterCounter(team,p,inn,'strikes',3,'#e74c3c');
-    const abD=document.createElement('div');abD.className='ab-cell';
-    abD.id='ab-'+team+'-'+p;abD.textContent=calcAB(team,p)||'';
+
     row.appendChild(numD);row.appendChild(nameIn);row.appendChild(posIn);
-    row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(ballsWrap);row.appendChild(strikesWrap);row.appendChild(abD);
+    row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(ballsWrap);row.appendChild(strikesWrap);
     container.appendChild(row);
   }
   const totBar=document.createElement('div');totBar.className='totals-bar';
@@ -724,7 +733,7 @@ function updateTotalsBar(team){
   set('totRuns-'+team,runs);set('totHits-'+team,hits);
   set('totBalls-'+team,balls);set('totStrikes-'+team,strikes);
   set('totPitches-'+team,balls+strikes);
-  for(let p=0;p<PLAYERS;p++){const el=document.getElementById('ab-'+team+'-'+p);if(el)el.textContent=calcAB(team,p)||'';}
+
 }
 
 function updateScoreBadges(){
@@ -992,7 +1001,7 @@ function updateHeaderSub(){
 function confirmReset(){
   if(confirm('Reset entire scoresheet? This cannot be undone.')){
     for(let t=0;t<2;t++){
-      for(let p=0;p<PLAYERS;p++) state.teams[t][p]=freshPlayer();
+      for(let p=0;p<PLAYERS;p++) state.teams[t][p]=freshPlayer(p+1);
       for(let p=0;p<PITCHERS;p++) state.pitchers[t][p]=freshPitcher();
     }
     activeInning=[0,0];
