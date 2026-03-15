@@ -871,7 +871,7 @@ function buildPitcherPane(team){
     // Header row
     const hdr=document.createElement('div');
     hdr.className='pitcher-header';
-    if(team===1) hdr.style.cssText='background:#5c1e1e;border-bottom-color:#e74c3c;';
+    if(team===1) hdr.style.cssText='background:#1a3a5c;border-bottom-color:#3498db;';
     // Editable jersey number
     const jerseyWrap=document.createElement('div');
     jerseyWrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:1px;';
@@ -879,7 +879,7 @@ function buildPitcherPane(team){
     jerseyLbl.style.cssText='font-size:8px;color:#8e8e93;';jerseyLbl.textContent='#';
     const jerseyIn=document.createElement('input');
     jerseyIn.type='text';jerseyIn.maxLength=3;jerseyIn.placeholder='##';
-    const jColor=team===0?'#f5a623':'#e74c3c';
+    const jColor='#f5a623';
     jerseyIn.style.cssText='width:36px;background:#0a2240;border:1.5px solid '+jColor+';border-radius:6px;color:'+jColor+';font-size:14px;font-weight:800;text-align:center;padding:2px;';
     jerseyIn.value=state.pitchers[team][p].jersey||'';
     jerseyIn.addEventListener('input',e=>{state.pitchers[team][p].jersey=e.target.value;save();});
@@ -1015,7 +1015,7 @@ function buildGameSummary(){
     totalRuns=0;totalHits=0;totalBB=0;
     state.teams[team].forEach(pl=>pl.innings.forEach(inn=>{
       if(inn.run)totalRuns++;
-      if(inn.play==='hit')totalHits++;
+      if(isHit(inn.play))totalHits++;
       if(inn.play==='walk')totalBB++;
     }));
     let totalHR=0;
