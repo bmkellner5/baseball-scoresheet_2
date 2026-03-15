@@ -342,10 +342,15 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   background:#1a3a5c;border-radius:8px;margin-bottom:8px;display:none;
 }
 .swap-hint.visible{display:block;}
-/* Player row highlight during swap */
-.player-row.swap-selected{background:#1a3a5c !important;outline:2px solid #f5a623;}
-.player-row.swap-candidate{cursor:pointer;}
-.player-row.swap-candidate:active{background:#252557 !important;}
+/* Jersey swap mode */
+.jersey-input.swap-lock{
+  background:#1a3a5c;border-color:#f5a623;color:#f5a623;
+  cursor:pointer;pointer-events:auto;font-size:13px;
+}
+.jersey-input.swap-first{
+  background:#f5a623;border-color:#f5a623;color:#1c1c1e;
+}
+.jersey-input.swap-lock:active{background:#0a2240;}
 
 /* ── Save Button ── */
 .save-btn{
@@ -740,14 +745,7 @@ function buildScoresheet(team){
 
     row.appendChild(numD);row.appendChild(nameIn);row.appendChild(posIn);
     row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(ballsWrap);row.appendChild(strikesWrap);
-    // Swap mode click handler
-    row.addEventListener('click',(e)=>{
-      if(!swapMode||swapTeam!==team) return;
-      // Ignore clicks on interactive children
-      if(e.target.tagName==='INPUT'||e.target.classList.contains('pc-btn')||
-         e.target.classList.contains('play-cell')||e.target.classList.contains('run-toggle')) return;
-      handleSwapClick(team,p,row);
-    });
+
     container.appendChild(row);
   }
   const totBar=document.createElement('div');totBar.className='totals-bar';
@@ -1080,57 +1078,90 @@ function saveToFile(){
 
 // ── Swap Functions ───────────────────────────────────────────────────────
 function toggleSwapMode(team){
-  if(swapMode&&swapTeam===team){
-    cancelSwap(team);
-    return;
-  }
-  swapMode=true;swapTeam=team;swapFirst=-1;
+  if(swapMode&&swapTeam===team){ cancelSwap(team); return; }
+  swapMode=true; swapTeam=team; swapFirst=-1;
   document.getElementById('swapBtn'+team).classList.add('active');
   document.getElementById('swapCancelBtn'+team).classList.add('visible');
   document.getElementById('swapHint'+team).classList.add('visible');
-  document.getElementById('swapHint'+team).textContent='Tap the FIRST player to swap.';
-  // Add swap-candidate class to all rows
-  const rows=document.getElementById('scoresheet'+team).querySelectorAll('.player-row');
-  rows.forEach(r=>r.classList.add('swap-candidate'));
+  document.getElementById('swapHint'+team).textContent='Tap a jersey # to select the FIRST player.';
+  lockJerseys(team);
+}
+
+function lockJerseys(team){
+  const container=document.getElementById('scoresheet'+team);
+  if(!container) return;
+  const jerseys=container.querySelectorAll('.jersey-input');
+  jerseys.forEach((inp,p)=>{
+    inp.readOnly=true;
+    inp.classList.add('swap-lock');
+    // Remove old listeners by cloning
+    const clone=inp.cloneNode(true);
+    inp.parentNode.replaceChild(clone,inp);
+    clone.addEventListener('click',()=>handleSwapClick(team,p,clone));
+  });
+}
+
+function unlockJerseys(team){
+  const container=document.getElementById('scoresheet'+team);
+  if(!container) return;
+  const jerseys=container.querySelectorAll('.jersey-input');
+  jerseys.forEach((inp,p)=>{
+    inp.readOnly=false;
+    inp.classList.remove('swap-lock','swap-first');
+    // Restore save listener by cloning
+    const clone=inp.cloneNode(true);
+    inp.parentNode.replaceChild(clone,inp);
+    clone.addEventListener('input',e=>{ state.teams[team][p].jersey=e.target.value; save(); });
+  });
 }
 
 function cancelSwap(team){
-  swapMode=false;swapTeam=-1;swapFirst=-1;
+  swapMode=false; swapTeam=-1; swapFirst=-1;
   document.getElementById('swapBtn'+team).classList.remove('active');
   document.getElementById('swapCancelBtn'+team).classList.remove('visible');
   document.getElementById('swapHint'+team).classList.remove('visible');
-  // Clear highlights
-  const rows=document.getElementById('scoresheet'+team).querySelectorAll('.player-row');
-  rows.forEach(r=>r.classList.remove('swap-candidate','swap-selected'));
+  unlockJerseys(team);
 }
 
-function handleSwapClick(team,playerIdx,rowEl){
+function handleSwapClick(team,playerIdx,jerseyEl){
   if(swapFirst===-1){
-    // Select first player
+    // Select first player — highlight their jersey
     swapFirst=playerIdx;
-    rowEl.classList.add('swap-selected');
-    rowEl.classList.remove('swap-candidate');
+    jerseyEl.classList.remove('swap-lock');
+    jerseyEl.classList.add('swap-first');
+    const jLabel=state.teams[team][playerIdx].jersey||String(playerIdx+1);
     document.getElementById('swapHint'+team).textContent=
-      'Player '+(playerIdx+1)+' selected ✓ — now tap the SECOND player to swap with.';
+      '#'+jLabel+' selected ✓ — now tap the jersey # of the SECOND player.';
   } else {
-    // Perform swap
     const a=swapFirst, b=playerIdx;
-    if(a===b){ cancelSwap(team); return; }
+    if(a===b){
+      // Deselect — re-lock first player
+      const container=document.getElementById('scoresheet'+team);
+      const jerseys=container.querySelectorAll('.jersey-input');
+      jerseys[a].classList.remove('swap-first');
+      jerseys[a].classList.add('swap-lock');
+      swapFirst=-1;
+      document.getElementById('swapHint'+team).textContent='Tap a jersey # to select the FIRST player.';
+      return;
+    }
     // Deep swap all player data
     const temp=JSON.parse(JSON.stringify(state.teams[team][a]));
     state.teams[team][a]=JSON.parse(JSON.stringify(state.teams[team][b]));
     state.teams[team][b]=temp;
     save();
-    cancelSwap(team);
+    // Exit swap mode and rebuild
+    swapMode=false; swapTeam=-1; swapFirst=-1;
+    document.getElementById('swapBtn'+team).classList.remove('active');
+    document.getElementById('swapCancelBtn'+team).classList.remove('visible');
     buildScoresheet(team);
-    // Show confirmation briefly
+    // Show confirmation
     const hint=document.getElementById('swapHint'+team);
     hint.classList.add('visible');
-    hint.style.background='#1e5c2e';hint.style.color='#2ecc71';
-    hint.textContent='✓ Players swapped successfully!';
+    hint.style.background='#1e5c2e'; hint.style.color='#2ecc71';
+    hint.textContent='✓ Players swapped!';
     setTimeout(()=>{
       hint.classList.remove('visible');
-      hint.style.background='';hint.style.color='';
+      hint.style.background=''; hint.style.color='';
     },2000);
   }
 }
