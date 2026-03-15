@@ -118,7 +118,7 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
 .player-table{background:#2c2c2e;border-radius:12px;overflow:hidden;margin-bottom:12px;}
 .row-grid{
   display:grid;
-  grid-template-columns:34px 1fr 40px 50px 36px 80px 80px;
+  grid-template-columns:34px 1fr 40px 50px 36px 80px 80px 38px;
   align-items:center;gap:4px;padding:6px 8px;
 }
 .table-header{background:#1a3a5c;font-size:10px;font-weight:700;color:#f5a623;border-bottom:2px solid #f5a623;}
@@ -134,6 +134,12 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   padding:2px;width:100%;min-height:28px;
 }
 .jersey-input:focus{outline:none;border-color:#f5a623;}
+.pitcher-jersey-cell{
+  background:#2c2c2e;border:1px solid #9b59b6;border-radius:5px;
+  color:#9b59b6;font-size:11px;font-weight:700;text-align:center;
+  padding:2px;width:100%;min-height:28px;
+}
+.pitcher-jersey-cell:focus{outline:none;border-color:#a569bd;}
 .player-name-input{
   background:transparent;border:none;border-bottom:1px solid #3a3a3c;
   color:#f2f2f7;font-size:12px;padding:2px 4px;width:100%;
@@ -359,6 +365,10 @@ header h1{font-size:20px;font-weight:700;color:#f5a623;}
   margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;
 }
 .save-btn:active{background:#0a2240;}
+
+/* ── Away team table header red ── */
+#page-away .table-header{background:#5c1e1e !important;border-bottom-color:#e74c3c !important;}
+#page-away .table-header>div{color:#e74c3c !important;}
 </style>
 </head>
 <body>
@@ -524,10 +534,10 @@ function isHit(p){return p==='single'||p==='double'||p==='triple'||p==='homerun'
 
 // ── State ─────────────────────────────────────────────────────────────────
 function freshPlayer(num){
-  return{jersey:num!==undefined?String(num):'',name:'',pos:'',innings:Array.from({length:INNINGS},()=>({play:'',run:false,balls:0,strikes:0}))};
+  return{jersey:num!==undefined?String(num):'',name:'',pos:'',innings:Array.from({length:INNINGS},()=>({play:'',run:false,balls:0,strikes:0,pitcherJersey:''}))};
 }
 function freshPitcher(){
-  return{name:'',innings:Array.from({length:INNINGS},()=>({balls:0,strikes:0}))};
+  return{jersey:'',name:'',innings:Array.from({length:INNINGS},()=>({balls:0,strikes:0}))};
 }
 const state={
   teams:[
@@ -570,11 +580,13 @@ function loadSaved(){
               state.teams[t][p].innings[i].run=s.teams[t][p].innings[i].run||false;
               state.teams[t][p].innings[i].balls=s.teams[t][p].innings[i].balls||0;
               state.teams[t][p].innings[i].strikes=s.teams[t][p].innings[i].strikes||0;
+              state.teams[t][p].innings[i].pitcherJersey=s.teams[t][p].innings[i].pitcherJersey||'';
             }
           }
         }
         for(let p=0;p<PITCHERS;p++){
           if(s.pitchers&&s.pitchers[t]&&s.pitchers[t][p]){
+            state.pitchers[t][p].jersey=s.pitchers[t][p].jersey||'';
             state.pitchers[t][p].name=s.pitchers[t][p].name||'';
             for(let i=0;i<INNINGS;i++) if(s.pitchers[t][p].innings&&s.pitchers[t][p].innings[i]){
               state.pitchers[t][p].innings[i].balls=s.pitchers[t][p].innings[i].balls||0;
@@ -602,6 +614,7 @@ function switchPage(page){
   document.getElementById('page-'+page).classList.add('active');
   document.getElementById('nav-'+page).classList.add('active');
   if(page==='game') buildGameSummary();
+  if(page==='pitchers') syncAllPitcherTotals();
 }
 
 // ── Inning Buttons ────────────────────────────────────────────────────────
@@ -623,10 +636,11 @@ function buildInningBtns(team){
 }
 
 // ── Batter Counter Helper ────────────────────────────────────────────────
-function makeBatterCounter(team,p,inn,field,maxVal,color){
+// dotMax = how many dots to display; enforceMax = whether + is capped at dotMax
+function makeBatterCounter(team,p,inn,field,dotMax,color,enforceMax){
   const wrap=document.createElement('div');
   wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;';
-  // Dot indicators
+  // Dot indicators (always shows dotMax dots)
   const dots=document.createElement('div');
   dots.style.cssText='display:flex;gap:2px;justify-content:center;';
   dots.id='dots-'+team+'-'+p+'-'+inn+'-'+field;
@@ -643,25 +657,38 @@ function makeBatterCounter(team,p,inn,field,maxVal,color){
   function renderDots(){
     dots.innerHTML='';
     const cur=state.teams[team][p].innings[inn][field]||0;
-    for(let d=0;d<maxVal;d++){
+    for(let d=0;d<dotMax;d++){
       const dot=document.createElement('div');
-      dot.style.cssText='width:8px;height:8px;border-radius:50%;border:1.5px solid '+color+';background:'+(d<cur?color:'transparent')+';';
+      // First dotMax dots fill normally; if cur > dotMax show all filled + overflow indicator
+      const filled=d<Math.min(cur,dotMax);
+      dot.style.cssText='width:8px;height:8px;border-radius:50%;border:1.5px solid '+color+
+        ';background:'+(filled?color:'transparent')+';';
       dots.appendChild(dot);
+    }
+    // If value exceeds dotMax, show a small "+N" overflow badge
+    const overflow=document.getElementById('ovf-'+team+'-'+p+'-'+inn+'-'+field);
+    if(overflow) overflow.remove();
+    if(cur>dotMax){
+      const ovf=document.createElement('div');
+      ovf.id='ovf-'+team+'-'+p+'-'+inn+'-'+field;
+      ovf.style.cssText='font-size:9px;font-weight:900;color:'+color+
+        ';background:rgba(0,0,0,0.4);border-radius:3px;padding:0 3px;margin-left:2px;white-space:nowrap;';
+      ovf.textContent='+'+(cur-dotMax);
+      dots.appendChild(ovf);
     }
   }
   plusB.addEventListener('click',()=>{
     const cur=state.teams[team][p].innings[inn][field]||0;
-    if(cur<maxVal){
-      state.teams[team][p].innings[inn][field]=cur+1;
-      val.textContent=state.teams[team][p].innings[inn][field];
-      renderDots();updateTotalsBar(team);save();
-    }
+    if(enforceMax&&cur>=dotMax) return; // balls still capped
+    state.teams[team][p].innings[inn][field]=cur+1;
+    val.textContent=state.teams[team][p].innings[inn][field];
+    renderDots();updateTotalsBar(team);syncAllPitcherTotals();save();
   });
   minB.addEventListener('click',()=>{
     if((state.teams[team][p].innings[inn][field]||0)>0){
       state.teams[team][p].innings[inn][field]--;
       val.textContent=state.teams[team][p].innings[inn][field];
-      renderDots();updateTotalsBar(team);save();
+      renderDots();updateTotalsBar(team);syncAllPitcherTotals();save();
     }
   });
   renderDots();
@@ -705,7 +732,7 @@ function buildScoresheet(team){
   container.innerHTML='';
   const hdr=document.createElement('div');
   hdr.className='row-grid table-header';
-  hdr.innerHTML='<div style="color:#8e8e93;font-size:10px">#</div><div class="lbl">Player</div><div>Pos</div><div>Play</div><div>R</div><div style="text-align:center;color:#2ecc71">Balls</div><div style="text-align:center;color:#e74c3c">Strikes</div>';
+  hdr.innerHTML='<div style="color:#8e8e93;font-size:10px">#</div><div class="lbl">Player</div><div>Pos</div><div>Play</div><div>R</div><div style="text-align:center;color:#2ecc71">Balls</div><div style="text-align:center;color:#e74c3c">Strikes</div><div style="text-align:center;color:#9b59b6;font-size:10px" title="Opposing pitcher jersey">Ptr#</div>';
   container.appendChild(hdr);
   for(let p=0;p<PLAYERS;p++){
     const row=document.createElement('div');
@@ -739,12 +766,25 @@ function buildScoresheet(team){
       updateScoreBadges();save();
     });
     // Balls counter (max 4)
-    const ballsWrap=makeBatterCounter(team,p,inn,'balls',4,'#2ecc71');
+    const ballsWrap=makeBatterCounter(team,p,inn,'balls',4,'#2ecc71',true);
     // Strikes counter (max 3)
-    const strikesWrap=makeBatterCounter(team,p,inn,'strikes',3,'#e74c3c');
+    const strikesWrap=makeBatterCounter(team,p,inn,'strikes',3,'#e74c3c',false);
 
     row.appendChild(numD);row.appendChild(nameIn);row.appendChild(posIn);
-    row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(ballsWrap);row.appendChild(strikesWrap);
+    // Pitcher jersey input for this at-bat
+    const pjWrap=document.createElement('div');
+    pjWrap.style.cssText='display:flex;align-items:center;justify-content:center;';
+    const pjIn=document.createElement('input');
+    pjIn.type='text';pjIn.maxLength=3;pjIn.placeholder='opp#';
+    pjIn.className='pitcher-jersey-cell';
+    pjIn.value=state.teams[team][p].innings[inn].pitcherJersey||'';
+    pjIn.addEventListener('input',e=>{
+      state.teams[team][p].innings[inn].pitcherJersey=e.target.value;
+      syncAllPitcherTotals();
+      save();
+    });
+    pjWrap.appendChild(pjIn);
+    row.appendChild(playCell);row.appendChild(runBtn);row.appendChild(ballsWrap);row.appendChild(strikesWrap);row.appendChild(pjWrap);
 
     container.appendChild(row);
   }
@@ -759,6 +799,7 @@ function buildScoresheet(team){
   container.appendChild(totBar);
   updateTotalsBar(team);
   refreshAllRunColors(team);
+  updatePtrColors(team);
 }
 
 function calcAB(team,p){return state.teams[team][p].innings.filter(x=>x.play!=='').length;}
@@ -826,27 +867,48 @@ function buildPitcherPane(team){
   for(let p=0;p<PITCHERS;p++){
     const card=document.createElement('div');
     card.className='pitcher-card';
+    card.dataset.team=team;
     // Header row
     const hdr=document.createElement('div');
     hdr.className='pitcher-header';
-    const badge=document.createElement('div');badge.className='pitcher-num-badge';badge.textContent='P'+(p+1);
+    if(team===1) hdr.style.cssText='background:#5c1e1e;border-bottom-color:#e74c3c;';
+    // Editable jersey number
+    const jerseyWrap=document.createElement('div');
+    jerseyWrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:1px;';
+    const jerseyLbl=document.createElement('div');
+    jerseyLbl.style.cssText='font-size:8px;color:#8e8e93;';jerseyLbl.textContent='#';
+    const jerseyIn=document.createElement('input');
+    jerseyIn.type='text';jerseyIn.maxLength=3;jerseyIn.placeholder='##';
+    const jColor=team===0?'#f5a623':'#e74c3c';
+    jerseyIn.style.cssText='width:36px;background:#0a2240;border:1.5px solid '+jColor+';border-radius:6px;color:'+jColor+';font-size:14px;font-weight:800;text-align:center;padding:2px;';
+    jerseyIn.value=state.pitchers[team][p].jersey||'';
+    jerseyIn.addEventListener('input',e=>{state.pitchers[team][p].jersey=e.target.value;save();});
+    jerseyWrap.appendChild(jerseyLbl);jerseyWrap.appendChild(jerseyIn);
     const nameIn=document.createElement('input');
-    nameIn.className='pitcher-name-input';nameIn.placeholder='Pitcher '+(p+1)+' name';
+    nameIn.className='pitcher-name-input';nameIn.placeholder='Pitcher name';
     nameIn.value=state.pitchers[team][p].name;
     nameIn.addEventListener('input',e=>{state.pitchers[team][p].name=e.target.value;save();});
-    hdr.appendChild(badge);hdr.appendChild(nameIn);
+    hdr.appendChild(jerseyWrap);hdr.appendChild(nameIn);
     card.appendChild(hdr);
-    // Innings grid
+    // Innings grid — read-only, computed from batter Ptr# entries
     const grid=document.createElement('div');grid.className='pitcher-innings-grid';
     for(let i=0;i<INNINGS;i++){
       const cell=document.createElement('div');cell.className='pitcher-inn-cell';
       const lbl=document.createElement('div');lbl.className='pitcher-inn-label';lbl.textContent='Inn '+(i+1);
+      const b=state.pitchers[team][p].innings[i].balls||0;
+      const s=state.pitchers[team][p].innings[i].strikes||0;
       const bsRow=document.createElement('div');bsRow.className='bs-row';
-      // Balls counter
-      const ballsDiv=makeBSCounter('B','b',team,p,i,'balls');
-      // Strikes counter
-      const strikesDiv=makeBSCounter('S','s',team,p,i,'strikes');
-      bsRow.appendChild(ballsDiv);bsRow.appendChild(strikesDiv);
+      bsRow.style.cssText='flex-direction:column;gap:3px;align-items:center;padding:2px 0;';
+      const bDiv=document.createElement('div');
+      bDiv.style.cssText='font-size:10px;color:#2ecc71;font-weight:700;';
+      bDiv.innerHTML='B: <span style="font-size:14px;font-weight:800;">'+b+'</span>';
+      const sDiv=document.createElement('div');
+      sDiv.style.cssText='font-size:10px;color:#e74c3c;font-weight:700;';
+      sDiv.innerHTML='S: <span style="font-size:14px;font-weight:800;">'+s+'</span>';
+      const pDiv=document.createElement('div');
+      pDiv.style.cssText='font-size:9px;color:#9b59b6;font-weight:700;border-top:1px solid #48484a;padding-top:2px;margin-top:1px;';
+      pDiv.textContent='P: '+(b+s);
+      bsRow.appendChild(bDiv);bsRow.appendChild(sDiv);bsRow.appendChild(pDiv);
       cell.appendChild(lbl);cell.appendChild(bsRow);
       grid.appendChild(cell);
     }
@@ -856,11 +918,27 @@ function buildPitcherPane(team){
     const totalBalls=state.pitchers[team][p].innings.reduce((a,c)=>a+(c.balls||0),0);
     const totalStrikes=state.pitchers[team][p].innings.reduce((a,c)=>a+(c.strikes||0),0);
     const totalPitches=totalBalls+totalStrikes;
+    const pitchWarn=totalPitches>75?' ⚠️':'';
+    const pitchColor=totalPitches>75?'color:#e74c3c;font-weight:900;':'';
     totRow.innerHTML=
-      '<div class="pt-cell"><div class="pt-cell-label">Balls</div><div class="pt-cell-val b" id="pTotB-'+team+'-'+p+'">'+totalBalls+'</div></div>'+
-      '<div class="pt-cell"><div class="pt-cell-label">Strikes</div><div class="pt-cell-val s" id="pTotS-'+team+'-'+p+'">'+totalStrikes+'</div></div>'+
-      '<div class="pt-cell"><div class="pt-cell-label">Pitches</div><div class="pt-cell-val p" id="pTotP-'+team+'-'+p+'">'+totalPitches+'</div></div>';
+      '<div class="pt-cell"><div class="pt-cell-label">Balls</div><div class="pt-cell-val b">'+totalBalls+'</div></div>'+
+      '<div class="pt-cell"><div class="pt-cell-label">Strikes</div><div class="pt-cell-val s">'+totalStrikes+'</div></div>'+
+      '<div class="pt-cell"><div class="pt-cell-label">Pitches</div><div class="pt-cell-val p" style="'+pitchColor+'">'+totalPitches+pitchWarn+'</div></div>';
     card.appendChild(totRow);
+    // Show batters faced this pitcher (from batter pitcherJersey entries)
+    const pj=state.pitchers[team][p].jersey;
+    if(pj){
+      const facedDiv=document.createElement('div');
+      facedDiv.style.cssText='padding:5px 10px;font-size:10px;color:#8e8e93;border-top:1px solid #3a3a3c;';
+      const faced=battersFaced(team,pj);
+      const totalFaced=faced.reduce((a,b)=>a+b,0);
+      const innLabels=faced.map((c,i)=>c>0?'Inn '+(i+1)+': '+c+' batter'+(c>1?'s':''):'').filter(Boolean);
+      const srcTeam=team===0?'Away':'Home';
+      facedDiv.textContent=totalFaced>0?
+        ('vs '+srcTeam+' batters: '+innLabels.join(' | ')):
+        'Enter pitcher # in Ptr# column on opposing batter rows.';
+      card.appendChild(facedDiv);
+    }
     container.appendChild(card);
   }
 }
@@ -1018,7 +1096,7 @@ function buildGameSummary(){
     ptInner.appendChild(tLabel);
     state.pitchers[team].forEach((pt,p)=>{
       if(!pt.name&&pt.innings.every(i=>!i.balls&&!i.strikes)) return;
-      const pname=pt.name||'Pitcher '+(p+1);
+      const pname=(pt.jersey?'#'+pt.jersey+' ':''+(p+1)+'. ')+(pt.name||'Pitcher '+(p+1));
       const tb=pt.innings.reduce((a,c)=>a+(c.balls||0),0);
       const ts=pt.innings.reduce((a,c)=>a+(c.strikes||0),0);
       const row=document.createElement('div');
@@ -1166,11 +1244,115 @@ function handleSwapClick(team,playerIdx,jerseyEl){
   }
 }
 
+// ── Sync pitcher data from batter entry ──────────────────────────────────
+// Home batters (team 0) face AWAY pitchers (team 1), vice versa.
+// Auto-registers pitchers from Ptr# entries and sums balls+strikes per inning.
+function syncAllPitcherTotals(){
+  for(let batterTeam=0;batterTeam<2;batterTeam++){
+    const pitcherTeam=1-batterTeam;
+    // Collect all unique pitcher jerseys from batter Ptr# entries
+    const jerseySet=new Set();
+    state.teams[batterTeam].forEach(pl=>{
+      pl.innings.forEach(inn=>{ if(inn.pitcherJersey) jerseySet.add(inn.pitcherJersey); });
+    });
+    // Auto-register: assign jersey to first empty pitcher slot if not already present
+    jerseySet.forEach(jersey=>{
+      let idx=state.pitchers[pitcherTeam].findIndex(pt=>pt.jersey===jersey);
+      if(idx===-1){
+        idx=state.pitchers[pitcherTeam].findIndex(pt=>!pt.jersey);
+        if(idx!==-1) state.pitchers[pitcherTeam][idx].jersey=jersey;
+      }
+    });
+    // Sum balls+strikes per pitcher per inning from batter data
+    state.pitchers[pitcherTeam].forEach(pt=>{
+      if(!pt.jersey) return;
+      for(let inn=0;inn<INNINGS;inn++){
+        let b=0,s=0;
+        state.teams[batterTeam].forEach(pl=>{
+          if(pl.innings[inn].pitcherJersey===pt.jersey){
+            b+=pl.innings[inn].balls||0;
+            s+=pl.innings[inn].strikes||0;
+          }
+        });
+        pt.innings[inn].balls=b;
+        pt.innings[inn].strikes=s;
+      }
+    });
+  }
+  buildPitchersPage();
+  updatePtrColors(0);
+  updatePtrColors(1);
+}
+
+function syncPitcherFromBatter(team,inn){
+  syncAllPitcherTotals();
+}
+
+function battersFaced(pitcherTeam,pitcherJersey){
+  if(!pitcherJersey) return [];
+  const batterTeam=1-pitcherTeam;
+  const result=[];
+  for(let inn=0;inn<INNINGS;inn++){
+    const cnt=state.teams[batterTeam].filter(pl=>{
+      return pl.innings[inn].pitcherJersey===pitcherJersey &&
+             ((pl.innings[inn].balls||0)>0||(pl.innings[inn].strikes||0)>0);
+    }).length;
+    result.push(cnt);
+  }
+  return result;
+}
+
+// Find pitcher index by jersey number for a team (-1 if not found)
+function findPitcherByJersey(team,jersey){
+  if(!jersey) return -1;
+  return state.pitchers[team].findIndex(pt=>pt.jersey===jersey);
+}
+
+// Get display label for a pitcher jersey (jersey# + name if known)
+function pitcherLabel(team,jersey){
+  if(!jersey) return '—';
+  const idx=findPitcherByJersey(team,jersey);
+  if(idx>=0&&state.pitchers[team][idx].name) return '#'+jersey+' '+state.pitchers[team][idx].name;
+  return '#'+jersey;
+}
+
+
+// ── Pitch Count Warning ───────────────────────────────────────────────────
+// Returns total pitches thrown by a pitcher (identified by jersey on pitcherTeam)
+function getPitcherTotalPitches(pitcherTeam, jersey){
+  if(!jersey) return 0;
+  const pt=state.pitchers[pitcherTeam].find(p=>p.jersey===jersey);
+  if(!pt) return 0;
+  return pt.innings.reduce((a,c)=>a+(c.balls||0)+(c.strikes||0),0);
+}
+
+// Update Ptr# cell colors on a batter team's scoresheet based on pitcher pitch counts
+function updatePtrColors(batterTeam){
+  const container=document.getElementById('scoresheet'+batterTeam);
+  if(!container) return;
+  const pitcherTeam=1-batterTeam;
+  container.querySelectorAll('.pitcher-jersey-cell').forEach(cell=>{
+    const jersey=cell.value;
+    if(!jersey){cell.style.borderColor='#9b59b6';cell.style.color='#9b59b6';return;}
+    const total=getPitcherTotalPitches(pitcherTeam,jersey);
+    if(total>75){
+      cell.style.borderColor='#e74c3c';
+      cell.style.color='#e74c3c';
+      cell.title='⚠️ '+total+' pitches thrown';
+    } else {
+      cell.style.borderColor='#9b59b6';
+      cell.style.color='#9b59b6';
+      cell.title=total>0?total+' pitches':'';
+    }
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 loadSaved();
 buildInningBtns(0);buildInningBtns(1);
 buildScoresheet(0);buildScoresheet(1);
-buildPitchersPage();
+syncAllPitcherTotals();
+syncAllPitcherTotals();
 updateHeaderSub();updateScoreBadges();
 </script>
 </body>
